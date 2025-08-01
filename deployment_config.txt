@@ -1,0 +1,2 @@
+# Google Cloud Function deployment configuration
+# Deploy with: gcloud functions deploy weekly-digest-generator --source . --runtime python311 --trigger-topic weekly-digest-trigger
