@@ -60,7 +60,7 @@ class ReadwiseClient:
         
         all_documents = []
         page_cursor = None
-        start_date_iso = start_date.isoformat() + "Z"
+        start_date_iso = start_date.isoformat().replace('+00:00', 'Z')
         
         while True:
             params = {
@@ -109,7 +109,7 @@ class ReadwiseClient:
         
         all_highlights = []
         page = 1
-        start_date_iso = start_date.isoformat() + "Z"
+        start_date_iso = start_date.isoformat().replace('+00:00', 'Z')
         
         while True:
             params = {
