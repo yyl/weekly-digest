@@ -7,7 +7,7 @@ This script allows you to test the functionality locally before deploying to Clo
 import os
 import sys
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Add src directory to path to import our modules
@@ -99,7 +99,7 @@ def test_data_fetching():
     readwise_client = ReadwiseClient(os.getenv('READWISE_ACCESS_TOKEN'))
     
     # Calculate date range (past 7 days)
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=7)
     
     try:
