@@ -32,8 +32,8 @@ class MarkdownGenerator:
         markdown_parts.append(self._generate_front_matter(date_range, generation_time))
         
         # Add main heading
-        markdown_parts.append(f"# Weekly Reading Digest - {date_range['start_formatted']} to {date_range['end_formatted']}")
-        markdown_parts.append("")
+        # markdown_parts.append(f"# Weekly Reading Digest - {date_range['start_formatted']} to {date_range['end_formatted']}")
+        # markdown_parts.append("")
         
         # Add overview section
         markdown_parts.append(self._generate_overview(documents, highlights))
@@ -47,7 +47,7 @@ class MarkdownGenerator:
             markdown_parts.append(self._generate_highlights_section(highlights))
         
         # Add footer
-        markdown_parts.append(self._generate_footer(generation_time))
+        # markdown_parts.append(self._generate_footer(generation_time))
         
         final_markdown = "\n".join(markdown_parts)
         logger.info("Markdown content generation completed")
@@ -63,7 +63,7 @@ class MarkdownGenerator:
 title: "{title}"
 date: {date_iso}
 draft: true
-tags: ["reading", "digest", "readwise"]
+tags: ["reading", "digest", "readwise", "automated"]
 categories: ["Reading"]
 ---"""
         

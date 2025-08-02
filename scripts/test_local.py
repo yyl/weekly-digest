@@ -157,7 +157,7 @@ def test_markdown_generation(processed_data):
         # Save to local file for inspection
         output_dir = project_root / "output"
         output_dir.mkdir(exist_ok=True)
-        filename = output_dir / f"test_digest_{processed_data['date_range']['start_formatted']}.md"
+        filename = output_dir / f"weekly_reading_digest_readwise_{processed_data['date_range']['start_formatted']}.md"
         
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
