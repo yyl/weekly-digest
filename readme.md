@@ -133,11 +133,9 @@ Common schedule examples:
 title: "Weekly Reading Digest - 2024-01-01 to 2024-01-07"
 date: 2024-01-08T00:00:00Z
 draft: true
-tags: ["reading", "digest", "readwise"]
+tags: ["reading", "digest", "readwise", "automated"]
 categories: ["Reading"]
 ---
-
-# Weekly Reading Digest - 2024-01-01 to 2024-01-07
 
 ## Overview
 
@@ -156,9 +154,12 @@ categories: ["Reading"]
 - **Reader RSS**: 3
 - **Import URL**: 2
 
+### By Location
+- **Archive**: 5
+
 ### Archived Articles
-- **[Article Title](https://example.com)** by Author Name (2,500 words)
-  - Brief summary of the article...
+- **Article Title** by Author Name (2,500 words)
+- **Another Article Title** by Another Author (1,500 words)
 
 ## Highlights from the Past Week
 
@@ -166,10 +167,6 @@ categories: ["Reading"]
    - *Note: Your personal note about this highlight*
 
 2. "Another interesting highlight..."
-
----
-
-*Generated on 2024-01-08 at 00:00 UTC using Readwise API*
 ```
 
 ## Troubleshooting
