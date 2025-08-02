@@ -111,7 +111,10 @@ categories: ["Reading"]
                 ""
             ])
             for source, count in documents['source_breakdown'].items():
-                source_display = source.replace('_', ' ').title() if source != 'unknown' else 'Unknown'
+                if source:
+                    source_display = source.replace('_', ' ').title()
+                else:
+                    source_display = 'Unknown'
                 breakdown_parts.append(f"- **{source_display}**: {count}")
             breakdown_parts.append("")
         
