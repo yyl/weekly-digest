@@ -134,18 +134,23 @@ categories: ["Reading"]
                 "### Archived Articles",
                 ""
             ])
+
+            # Sort documents by last_moved_at time, most recent first
+            # The 'last_moved_at' is an ISO string, so we parse it for sorting.
+            # Fallback to a very old date if 'last_moved_at' is missing.
+            sorted_documents = sorted(
+                documents['documents'],
+                key=lambda d: datetime.fromisoformat(d['last_moved_at'].replace('Z', '+00:00')) if d.get('last_moved_at') else datetime.min.replace(tzinfo=timezone.utc),
+                reverse=True
+            )
             
-            for doc in documents['documents']:
+            for doc in sorted_documents:
                 title = doc['title']
                 author = doc['author']
                 word_count = doc['word_count']
-                source_url = doc['source_url']
                 
                 # Create article entry
-                if source_url:
-                    article_line = f"- **[{title}]({source_url})**"
-                else:
-                    article_line = f"- **{title}**"
+                article_line = f"- **{title}**"
                 
                 if author:
                     article_line += f" by {author}"
@@ -154,10 +159,6 @@ categories: ["Reading"]
                     article_line += f" ({word_count:,} words)"
                 
                 breakdown_parts.append(article_line)
-                
-                # Add summary if available
-                if doc['summary']:
-                    breakdown_parts.append(f"  - {doc['summary']}")
             
             breakdown_parts.append("")
         
