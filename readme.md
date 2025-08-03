@@ -14,9 +14,9 @@ An automated system that generates weekly reading digests from your Readwise acc
 
 Each weekly digest includes:
 
-- **Overview Statistics**: Number of articles read, total words, highlight count
+- **Overview Statistics**: Number of articles read, total words, highlight count, and average time to archive
 - **Article Breakdowns**: By category (articles, books, etc.), source (RSS, imports, etc.)
-- **Archived Articles List**: Titles, authors, word counts, and summaries
+- **Archived Articles List**: Titles, authors, word counts, and time to archive (in hours), sorted by most recently archived
 - **Highlights**: All highlights created during the week with optional notes
 - **YAML Front Matter**: Ready for static site generators (Hugo, Jekyll, etc.)
 
@@ -143,6 +143,7 @@ categories: ["Reading"]
 - **Total Words Read**: 12,450
 - **Highlights Created**: 23
 - **Average Words per Article**: 2,490
+- **Average Time Before Archive**: 2.00 hours
 
 ## Article Breakdowns
 
@@ -158,8 +159,8 @@ categories: ["Reading"]
 - **Archive**: 5
 
 ### Archived Articles
-- **Article Title** by Author Name (2,500 words)
-- **Another Article Title** by Another Author (1,500 words)
+- **Article Title** by Author Name (2,500 words) (archived after 1.00 hours)
+- **Another Article Title** by Another Author (1,500 words) (archived after 3.00 hours)
 
 ## Highlights from the Past Week
 

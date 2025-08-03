@@ -84,6 +84,10 @@ categories: ["Reading"]
         if documents['total_count'] > 0:
             avg_words = documents['total_word_count'] // documents['total_count']
             overview_parts.insert(-1, f"- **Average Words per Article**: {avg_words:,}")
+
+        if documents.get('average_time_to_archive', 0) > 0:
+            avg_time = int(documents['average_time_to_archive'])
+            overview_parts.insert(-1, f"- **Average Time Before Archive**: {avg_time} hours")
         
         return "\n".join(overview_parts)
     
@@ -157,6 +161,10 @@ categories: ["Reading"]
                 
                 if word_count > 0:
                     article_line += f" ({word_count:,} words)"
+
+                if doc.get('time_to_archive') is not None:
+                    time_to_archive = doc['time_to_archive']
+                    article_line += f" (time to archive: {time_to_archive:.2f} hours)"
                 
                 breakdown_parts.append(article_line)
             

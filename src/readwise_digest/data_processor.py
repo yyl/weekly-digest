@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict, Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class DataProcessor:
             },
             'documents': document_stats,
             'highlights': highlight_data,
-            'generation_timestamp': datetime.utcnow()
+            'generation_timestamp': datetime.now(timezone.utc)
         }
         
         logger.info(f"Processed {document_stats['total_count']} documents and {len(highlight_data['highlights'])} highlights")
@@ -52,6 +52,7 @@ class DataProcessor:
             return {
                 'total_count': 0,
                 'total_word_count': 0,
+                'average_time_to_archive': 0,
                 'category_breakdown': {},
                 'source_breakdown': {},
                 'location_breakdown': {},
@@ -60,6 +61,8 @@ class DataProcessor:
         
         total_count = len(documents)
         total_word_count = 0
+        total_archive_time_hours = 0.0
+        archived_with_time_count = 0
         category_counts = Counter()
         source_counts = Counter()
         location_counts = Counter()
@@ -79,6 +82,21 @@ class DataProcessor:
             category_counts[category] += 1
             source_counts[source] += 1
             location_counts[location] += 1
+
+            # Calculate time to archive
+            time_to_archive = None
+            created_at_str = doc.get('created_at')
+            last_moved_at_str = doc.get('last_moved_at')
+
+            if created_at_str and last_moved_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    last_moved_at = datetime.fromisoformat(last_moved_at_str.replace('Z', '+00:00'))
+                    time_to_archive = (last_moved_at - created_at).total_seconds() / 3600
+                    total_archive_time_hours += time_to_archive
+                    archived_with_time_count += 1
+                except (ValueError, TypeError):
+                    logger.warning(f"Could not parse time for document {doc.get('id')}")
             
             # Store processed document info
             processed_doc = {
@@ -92,14 +110,19 @@ class DataProcessor:
                 'site_name': doc.get('site_name', ''),
                 'published_date': doc.get('published_date', ''),
                 'summary': doc.get('summary', ''),
-                'last_moved_at': doc.get('last_moved_at', ''),
+                'last_moved_at': last_moved_at_str,
+                'created_at': created_at_str,
+                'time_to_archive': time_to_archive,
                 'updated_at': doc.get('updated_at', '')
             }
             processed_documents.append(processed_doc)
         
+        average_time_to_archive = total_archive_time_hours / archived_with_time_count if archived_with_time_count > 0 else 0
+
         return {
             'total_count': total_count,
             'total_word_count': total_word_count,
+            'average_time_to_archive': average_time_to_archive,
             'category_breakdown': dict(category_counts.most_common()),
             'source_breakdown': dict(source_counts.most_common()),
             'location_breakdown': dict(location_counts.most_common()),
