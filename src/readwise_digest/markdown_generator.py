@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,10 @@ class MarkdownGenerator:
     def _generate_front_matter(self, date_range: Dict, generation_time: datetime) -> str:
         """Generate YAML front matter for the markdown file"""
         title = f"Weekly Reading Digest - {date_range['start_formatted']} to {date_range['end_formatted']}"
-        date_iso = generation_time.isoformat() + "Z"
+        
+        pdt = ZoneInfo("America/Los_Angeles")
+        pdt_time = generation_time.astimezone(pdt)
+        date_iso = pdt_time.isoformat(timespec='seconds')
         
         front_matter = f"""---
 title: "{title}"
@@ -164,7 +168,7 @@ categories: ["Reading"]
 
                 if doc.get('time_to_archive') is not None:
                     time_to_archive = doc['time_to_archive']
-                    article_line += f" (time to archive: {time_to_archive:.2f} hours)"
+                    article_line += f" (archived after {time_to_archive:.2f} hours)"
                 
                 breakdown_parts.append(article_line)
             
