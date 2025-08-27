@@ -126,16 +126,16 @@ categories: ["Reading"]
                 breakdown_parts.append(f"- **{source_display}**: {count}")
             breakdown_parts.append("")
         
-        # Location breakdown (should mostly be 'archive' but good for completeness)
-        if documents['location_breakdown']:
+        # Tag breakdown
+        if documents.get('tag_breakdown'):
             breakdown_parts.extend([
-                "### By Location",
+                "### By Tag",
                 ""
             ])
-            for location, count in documents['location_breakdown'].items():
-                breakdown_parts.append(f"- **{location.title()}**: {count}")
+            for tag, count in documents['tag_breakdown'].items():
+                breakdown_parts.append(f"- **{tag}**: {count}")
             breakdown_parts.append("")
-        
+
         # List of archived articles
         if documents['documents']:
             breakdown_parts.extend([

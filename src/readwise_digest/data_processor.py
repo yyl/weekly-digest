@@ -55,7 +55,7 @@ class DataProcessor:
                 'average_time_to_archive': 0,
                 'category_breakdown': {},
                 'source_breakdown': {},
-                'location_breakdown': {},
+                'tag_breakdown': {},
                 'documents': []
             }
         
@@ -65,7 +65,7 @@ class DataProcessor:
         archived_with_time_count = 0
         category_counts = Counter()
         source_counts = Counter()
-        location_counts = Counter()
+        tag_counts = Counter()
         
         processed_documents = []
         
@@ -74,14 +74,18 @@ class DataProcessor:
             word_count = doc.get('word_count', 0) or 0
             total_word_count += word_count
             
-            # Count categories, sources, and locations
+            # Count categories, sources
             category = doc.get('category', 'unknown')
             source = doc.get('source', 'unknown')
-            location = doc.get('location', 'unknown')
             
             category_counts[category] += 1
             source_counts[source] += 1
-            location_counts[location] += 1
+
+            # Extract and count tags
+            tags = doc.get('tags', [])
+            if tags:
+                for tag in tags:
+                    tag_counts[tag] += 1
 
             # Calculate time to archive
             time_to_archive = None
@@ -104,7 +108,6 @@ class DataProcessor:
                 'author': doc.get('author', ''),
                 'source': source,
                 'category': category,
-                'location': location,
                 'word_count': word_count,
                 'source_url': doc.get('source_url', ''),
                 'site_name': doc.get('site_name', ''),
@@ -125,7 +128,7 @@ class DataProcessor:
             'average_time_to_archive': average_time_to_archive,
             'category_breakdown': dict(category_counts.most_common()),
             'source_breakdown': dict(source_counts.most_common()),
-            'location_breakdown': dict(location_counts.most_common()),
+            'tag_breakdown': dict(tag_counts.most_common()),
             'documents': processed_documents
         }
     
