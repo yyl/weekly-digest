@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Readwise Weekly Digest Generator - Deployment Script
-# This script deploys the Cloud Function and sets up the Cloud Scheduler
+# Readwise Weekly Digest Generator - UV Deployment Script
+# This script deploys the Cloud Function using UV for dependency management
 
 set -e  # Exit on any error
 
@@ -17,6 +17,12 @@ echo "Deploying Readwise Weekly Digest Generator to Google Cloud"
 echo "Project: $PROJECT_ID"
 echo "Region: $REGION"
 echo "Function: $FUNCTION_NAME"
+
+# Check if we're in the right directory
+if [ ! -f "pyproject.toml" ]; then
+    echo "Error: pyproject.toml not found. Please run from project root directory."
+    exit 1
+fi
 
 # Check if required environment variables are set
 if [ -z "$READWISE_ACCESS_TOKEN" ]; then
@@ -39,6 +45,33 @@ GITHUB_TARGET_BRANCH=${GITHUB_TARGET_BRANCH:-"main"}
 echo "GitHub Repository: $GITHUB_REPO_OWNER/$GITHUB_REPO_NAME"
 echo "Target Branch: $GITHUB_TARGET_BRANCH"
 
+# Create deployment directory
+echo "Preparing deployment package..."
+DEPLOY_DIR="deploy_temp"
+rm -rf $DEPLOY_DIR
+mkdir -p $DEPLOY_DIR
+
+# Export requirements using UV
+echo "Exporting requirements with UV..."
+uv export --format requirements-txt --no-hashes > $DEPLOY_DIR/requirements.txt
+
+# Copy source files to deployment directory
+echo "Copying source files..."
+cp -r src/readwise_digest/* $DEPLOY_DIR/
+cp src/readwise_digest/__init__.py $DEPLOY_DIR/ 2>/dev/null || true
+
+# Copy main.py from root directory (Cloud Functions expects it in root)
+if [ -f "main.py" ]; then
+    cp main.py $DEPLOY_DIR/
+    echo "Copied main.py to deployment directory"
+else
+    echo "Error: main.py not found in root directory"
+    echo "Please ensure main.py exists in the project root directory"
+    exit 1
+fi
+
+echo "Deployment package prepared in $DEPLOY_DIR/"
+
 # Enable required APIs
 echo "Enabling required Google Cloud APIs..."
 gcloud services enable cloudfunctions.googleapis.com --project=$PROJECT_ID
@@ -55,7 +88,7 @@ gcloud functions deploy $FUNCTION_NAME \
     --gen2 \
     --runtime=python311 \
     --region=$REGION \
-    --source=. \
+    --source=$DEPLOY_DIR \
     --entry-point=weekly_digest_generator \
     --trigger-topic=$TOPIC_NAME \
     --timeout=540s \
@@ -81,6 +114,10 @@ gcloud scheduler jobs update pubsub $JOB_NAME \
     --message-body='{"trigger":"weekly-digest"}' \
     --project=$PROJECT_ID \
     --time-zone="UTC" || true
+
+# Clean up deployment directory
+echo "Cleaning up deployment files..."
+rm -rf $DEPLOY_DIR
 
 echo ""
 echo "Deployment completed successfully!"
