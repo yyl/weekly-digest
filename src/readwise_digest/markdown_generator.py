@@ -1,6 +1,5 @@
 import logging
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime
 from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
@@ -33,8 +32,8 @@ class MarkdownGenerator:
         markdown_parts.append(self._generate_front_matter(date_range, generation_time))
         
         # Add main heading
-        # markdown_parts.append(f"# Weekly Reading Digest - {date_range['start_formatted']} to {date_range['end_formatted']}")
-        # markdown_parts.append("")
+        markdown_parts.append(f"# Weekly Reading Digest - {date_range['start_formatted']} to {date_range['end_formatted']}")
+        markdown_parts.append("")
         
         # Add overview section
         markdown_parts.append(self._generate_overview(documents, highlights))
@@ -48,7 +47,7 @@ class MarkdownGenerator:
             markdown_parts.append(self._generate_highlights_section(highlights))
         
         # Add footer
-        # markdown_parts.append(self._generate_footer(generation_time))
+        markdown_parts.append(self._generate_footer(generation_time))
         
         final_markdown = "\n".join(markdown_parts)
         logger.info("Markdown content generation completed")
@@ -58,16 +57,13 @@ class MarkdownGenerator:
     def _generate_front_matter(self, date_range: Dict, generation_time: datetime) -> str:
         """Generate YAML front matter for the markdown file"""
         title = f"Weekly Reading Digest - {date_range['start_formatted']} to {date_range['end_formatted']}"
-        
-        pdt = ZoneInfo("America/Los_Angeles")
-        pdt_time = generation_time.astimezone(pdt)
-        date_iso = pdt_time.isoformat(timespec='seconds')
+        date_iso = generation_time.isoformat() + "Z"
         
         front_matter = f"""---
 title: "{title}"
 date: {date_iso}
-draft: true
-tags: ["reading", "digest", "readwise", "automated"]
+draft: false
+tags: ["reading", "digest", "readwise"]
 categories: ["Reading"]
 ---"""
         
@@ -88,10 +84,6 @@ categories: ["Reading"]
         if documents['total_count'] > 0:
             avg_words = documents['total_word_count'] // documents['total_count']
             overview_parts.insert(-1, f"- **Average Words per Article**: {avg_words:,}")
-
-        if documents.get('average_time_to_archive', 0) > 0:
-            avg_time = int(documents['average_time_to_archive'])
-            overview_parts.insert(-1, f"- **Average Time Before Archive**: {avg_time} hours")
         
         return "\n".join(overview_parts)
     
@@ -112,69 +104,91 @@ categories: ["Reading"]
                 breakdown_parts.append(f"- **{category.title()}**: {count}")
             breakdown_parts.append("")
         
-        # Source breakdown
+        # Source breakdown with proper capitalization
         if documents['source_breakdown']:
             breakdown_parts.extend([
                 "### By Source",
                 ""
             ])
             for source, count in documents['source_breakdown'].items():
-                if source:
-                    source_display = source.replace('_', ' ').title()
-                else:
-                    source_display = 'Unknown'
+                source_display = self._format_source_name(source)
                 breakdown_parts.append(f"- **{source_display}**: {count}")
             breakdown_parts.append("")
         
-        # Tag breakdown
-        if documents.get('tag_breakdown'):
+        # Location breakdown (should mostly be 'archive' but good for completeness)
+        if documents['location_breakdown']:
             breakdown_parts.extend([
-                "### By Tag",
+                "### By Location",
                 ""
             ])
-            for tag, count in documents['tag_breakdown'].items():
-                breakdown_parts.append(f"- **{tag}**: {count}")
+            for location, count in documents['location_breakdown'].items():
+                breakdown_parts.append(f"- **{location.title()}**: {count}")
             breakdown_parts.append("")
-
+        
         # List of archived articles
         if documents['documents']:
             breakdown_parts.extend([
                 "### Archived Articles",
                 ""
             ])
-
-            # Sort documents by last_moved_at time, most recent first
-            # The 'last_moved_at' is an ISO string, so we parse it for sorting.
-            # Fallback to a very old date if 'last_moved_at' is missing.
-            sorted_documents = sorted(
-                documents['documents'],
-                key=lambda d: datetime.fromisoformat(d['last_moved_at'].replace('Z', '+00:00')) if d.get('last_moved_at') else datetime.min.replace(tzinfo=timezone.utc),
-                reverse=True
-            )
             
-            for doc in sorted_documents:
+            for doc in documents['documents']:
                 title = doc['title']
                 author = doc['author']
                 word_count = doc['word_count']
+                source_url = doc['source_url']
                 
                 # Create article entry
-                article_line = f"- **{title}**"
+                if source_url:
+                    article_line = f"- **[{title}]({source_url})**"
+                else:
+                    article_line = f"- **{title}**"
                 
                 if author:
                     article_line += f" by {author}"
                 
                 if word_count > 0:
                     article_line += f" ({word_count:,} words)"
-
-                if doc.get('time_to_archive') is not None:
-                    time_to_archive = doc['time_to_archive']
-                    article_line += f" (archived after {time_to_archive:.2f} hours)"
                 
                 breakdown_parts.append(article_line)
+                
+                # Add summary if available
+                if doc['summary']:
+                    breakdown_parts.append(f"  - {doc['summary']}")
             
             breakdown_parts.append("")
         
         return "\n".join(breakdown_parts)
+    
+    def _format_source_name(self, source: str) -> str:
+        """Format source name with proper capitalization"""
+        # Special cases for common sources
+        special_cases = {
+            'ios': 'iOS',
+            'macos': 'macOS',
+            'rss': 'RSS',
+            'api': 'API',
+            'url': 'URL',
+            'pdf': 'PDF',
+            'epub': 'EPUB',
+            'html': 'HTML',
+        }
+        
+        # Check if the entire source is a special case
+        if source.lower() in special_cases:
+            return special_cases[source.lower()]
+        
+        # Handle compound names like "reader_ios" or "import_url"
+        parts = source.replace('_', ' ').replace('-', ' ').split()
+        formatted_parts = []
+        
+        for part in parts:
+            if part.lower() in special_cases:
+                formatted_parts.append(special_cases[part.lower()])
+            else:
+                formatted_parts.append(part.title())
+        
+        return ' '.join(formatted_parts)
     
     def _generate_highlights_section(self, highlights: Dict) -> str:
         """Generate highlights section"""
