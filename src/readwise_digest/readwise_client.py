@@ -60,7 +60,16 @@ class ReadwiseClient:
         
         all_documents = []
         page_cursor = None
-        start_date_iso = start_date.isoformat().replace('+00:00', 'Z')
+        
+        # Ensure start_date is timezone-aware (UTC) for comparison
+        from datetime import timezone
+        if start_date.tzinfo is None:
+            start_date_aware = start_date.replace(tzinfo=timezone.utc)
+        else:
+            start_date_aware = start_date
+        
+        # Format for API: ISO 8601 with Z suffix (not +00:00)
+        start_date_iso = start_date.replace(tzinfo=None).isoformat() + "Z"
         
         while True:
             params = {
@@ -85,11 +94,11 @@ class ReadwiseClient:
                 
                 if last_moved_str:
                     last_moved = datetime.fromisoformat(last_moved_str.replace('Z', '+00:00'))
-                    if last_moved >= start_date and doc.get('location') == 'archive':
+                    if last_moved >= start_date_aware and doc.get('location') == 'archive':
                         filtered_documents.append(doc)
                 elif updated_str:
                     updated = datetime.fromisoformat(updated_str.replace('Z', '+00:00'))
-                    if updated >= start_date and doc.get('location') == 'archive':
+                    if updated >= start_date_aware and doc.get('location') == 'archive':
                         filtered_documents.append(doc)
             
             all_documents.extend(filtered_documents)
@@ -109,7 +118,12 @@ class ReadwiseClient:
         
         all_highlights = []
         page = 1
-        start_date_iso = start_date.isoformat().replace('+00:00', 'Z')
+        
+        # Format date as ISO 8601 with Z suffix (not +00:00)
+        # Convert to UTC if not already, then format without timezone info and append Z
+        if start_date.tzinfo is not None:
+            start_date = start_date.replace(tzinfo=None)
+        start_date_iso = start_date.isoformat() + "Z"
         
         while True:
             params = {
