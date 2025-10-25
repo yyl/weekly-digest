@@ -62,7 +62,7 @@ class MarkdownGenerator:
         front_matter = f"""---
 title: "{title}"
 date: {date_iso}
-draft: true
+draft: false
 tags: ["reading", "digest", "readwise", "automated"]
 categories: ["Reading"]
 ---"""
@@ -96,9 +96,14 @@ categories: ["Reading"]
         if not source:
             return 'Unknown'
         
-        # Special case for iOS
-        if source.lower() == 'ios':
-            return 'iOS'
+        # Special case for iOS-related sources
+        if 'ios' in source.lower():
+            # Handle cases like "reader share sheet ios" or "reader_share_sheet_ios"
+            parts = source.lower().replace('_', ' ').split()
+            formatted_parts = [part.title() for part in parts]
+            # Replace 'Ios' with 'iOS'
+            formatted_parts = ['iOS' if part.lower() == 'ios' else part for part in formatted_parts]
+            return ' '.join(formatted_parts)
         
         # Default: replace underscores and title case
         return source.replace('_', ' ').title()
@@ -131,14 +136,30 @@ categories: ["Reading"]
                 breakdown_parts.append(f"- **{source_display}**: {count}")
             breakdown_parts.append("")
         
-        # Tag breakdown
+        # Tag breakdown as table
         if documents.get('tag_breakdown'):
             breakdown_parts.extend([
                 "### By Tag",
                 ""
             ])
-            for tag, count in documents['tag_breakdown'].items():
-                breakdown_parts.append(f"- **{tag}**: {count}")
+            
+            # Create markdown table for tags
+            breakdown_parts.extend([
+                "| Tag | Count |",
+                "|-----|-------|"
+            ])
+            
+            # Sort tags by count (descending) for better readability
+            sorted_tags = sorted(
+                documents['tag_breakdown'].items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
+            
+            for tag, count in sorted_tags:
+                tag_escaped = tag.replace('|', '\\|')
+                breakdown_parts.append(f"| {tag_escaped} | {count} |")
+            
             breakdown_parts.append("")
 
         # List of archived articles as a table
