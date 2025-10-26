@@ -11,7 +11,7 @@ REGION=${2:-"us-central1"}
 FUNCTION_NAME="weekly-digest-generator"
 TOPIC_NAME="weekly-digest-trigger"
 JOB_NAME="weekly-digest-schedule"
-SCHEDULE="0 0 * * 1"  # Every Monday at midnight UTC (cron format)
+SCHEDULE="0 1 * * 6"  # Every Saturday at 1 AM UTC (cron format)
 
 echo "Deploying Readwise Weekly Digest Generator to Google Cloud"
 echo "Project: $PROJECT_ID"
@@ -78,9 +78,15 @@ gcloud services enable cloudfunctions.googleapis.com --project=$PROJECT_ID
 gcloud services enable cloudscheduler.googleapis.com --project=$PROJECT_ID
 gcloud services enable pubsub.googleapis.com --project=$PROJECT_ID
 
-# Create Pub/Sub topic if it doesn't exist
-echo "Creating Pub/Sub topic: $TOPIC_NAME"
-gcloud pubsub topics create $TOPIC_NAME --project=$PROJECT_ID || echo "Topic already exists"
+# Create or verify Pub/Sub topic
+echo "Setting up Pub/Sub topic: $TOPIC_NAME"
+if gcloud pubsub topics describe $TOPIC_NAME --project=$PROJECT_ID &>/dev/null; then
+    echo "✓ Pub/Sub topic already exists"
+else
+    echo "Creating new Pub/Sub topic..."
+    gcloud pubsub topics create $TOPIC_NAME --project=$PROJECT_ID
+    echo "✓ Pub/Sub topic created"
+fi
 
 # Deploy the Cloud Function
 echo "Deploying Cloud Function: $FUNCTION_NAME"
@@ -96,38 +102,47 @@ gcloud functions deploy $FUNCTION_NAME \
     --set-env-vars=READWISE_ACCESS_TOKEN="$READWISE_ACCESS_TOKEN",GITHUB_TOKEN="$GITHUB_TOKEN",GITHUB_REPO_OWNER="$GITHUB_REPO_OWNER",GITHUB_REPO_NAME="$GITHUB_REPO_NAME",GITHUB_TARGET_BRANCH="$GITHUB_TARGET_BRANCH" \
     --project=$PROJECT_ID
 
-# Create Cloud Scheduler job
-echo "Creating Cloud Scheduler job: $JOB_NAME"
-gcloud scheduler jobs create pubsub $JOB_NAME \
-    --location=$REGION \
-    --schedule="$SCHEDULE" \
-    --topic=$TOPIC_NAME \
-    --message-body='{"trigger":"weekly-digest"}' \
-    --project=$PROJECT_ID \
-    --time-zone="UTC" || echo "Scheduler job already exists, updating..."
-
-# If job already exists, update it
-gcloud scheduler jobs update pubsub $JOB_NAME \
-    --location=$REGION \
-    --schedule="$SCHEDULE" \
-    --topic=$TOPIC_NAME \
-    --message-body='{"trigger":"weekly-digest"}' \
-    --project=$PROJECT_ID \
-    --time-zone="UTC" || true
+# Create or update Cloud Scheduler job
+echo "Setting up Cloud Scheduler job: $JOB_NAME"
+if gcloud scheduler jobs describe $JOB_NAME --location=$REGION --project=$PROJECT_ID &>/dev/null; then
+    echo "Updating existing scheduler job..."
+    gcloud scheduler jobs update pubsub $JOB_NAME \
+        --location=$REGION \
+        --schedule="$SCHEDULE" \
+        --topic=$TOPIC_NAME \
+        --message-body='{"trigger":"weekly-digest"}' \
+        --project=$PROJECT_ID \
+        --time-zone="UTC"
+    echo "✓ Scheduler job updated"
+else
+    echo "Creating new scheduler job..."
+    gcloud scheduler jobs create pubsub $JOB_NAME \
+        --location=$REGION \
+        --schedule="$SCHEDULE" \
+        --topic=$TOPIC_NAME \
+        --message-body='{"trigger":"weekly-digest"}' \
+        --project=$PROJECT_ID \
+        --time-zone="UTC"
+    echo "✓ Scheduler job created"
+fi
 
 # Clean up deployment directory
 echo "Cleaning up deployment files..."
 rm -rf $DEPLOY_DIR
 
 echo ""
-echo "Deployment completed successfully!"
+echo "════════════════════════════════════════════════════════════════"
+echo "✓ Deployment completed successfully!"
+echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "Function URL: https://console.cloud.google.com/functions/details/$REGION/$FUNCTION_NAME?project=$PROJECT_ID"
 echo "Scheduler Job: https://console.cloud.google.com/cloudscheduler/jobs/edit/$REGION/$JOB_NAME?project=$PROJECT_ID"
 echo ""
 echo "The function will run every Monday at midnight UTC."
-echo "You can test it manually by running:"
-echo "gcloud scheduler jobs run $JOB_NAME --location=$REGION --project=$PROJECT_ID"
 echo ""
-echo "To view logs:"
-echo "gcloud functions logs read $FUNCTION_NAME --region=$REGION --project=$PROJECT_ID"
+echo "Manual testing:"
+echo "  gcloud scheduler jobs run $JOB_NAME --location=$REGION --project=$PROJECT_ID"
+echo ""
+echo "View logs:"
+echo "  gcloud functions logs read $FUNCTION_NAME --region=$REGION --project=$PROJECT_ID --limit=50"
+echo ""

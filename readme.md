@@ -6,58 +6,41 @@ Automated system that generates weekly reading digests from your Readwise accoun
 
 This serverless application runs weekly on Google Cloud Functions, fetching your archived articles and highlights from Readwise, processing the data into a formatted markdown digest, and committing it to your GitHub blog repository for automatic publication.
 
-## Code Structure
-
-### Core Files
-
-- **`main.py`** - Cloud Function entry points. Contains `weekly_digest_generator()` for Pub/Sub triggers and `run_digest_generation()` with the core orchestration logic.
-
-- **`readwise_client.py`** - Readwise API client handling authentication, rate limiting, and pagination for both Reader API (archived documents) and main API (highlights).
-
-- **`github_client.py`** - GitHub API client using PyGithub to create/update files in your repository with proper authentication and error handling.
-
-- **`data_processor.py`** - Processes raw API responses into structured data: counts articles, calculates word counts, aggregates by category/source, and extracts highlight texts.
-
-- **`markdown_generator.py`** - Generates formatted markdown content with YAML front matter, statistics sections, and highlight lists ready for static site generators.
-
-### Configuration Files
-
-- **`pyproject.toml`** - UV project configuration defining dependencies, tool settings (black, ruff), and project metadata.
-
-- **`scripts/deploy.sh`** - Deployment automation script that sets up IAM permissions, deploys the Cloud Function, and configures Cloud Scheduler.
-
-- **`scripts/test_local.py`** - Local testing script to verify the complete pipeline before deploying to the cloud.
-
-## Cloud Architecture
+## Architecture
 
 ```
-Cloud Scheduler (cron: weekly)
+Cloud Scheduler (every Saturday 1 AM UTC)
     ↓ publishes message
 Pub/Sub Topic
-    ↓ triggers via Eventarc
-Cloud Function (Python 3.11, 256MB, Gen 2)
+    ↓ triggers
+Cloud Function (Python 3.11)
     ↓ fetches data
-Readwise APIs (Reader + Main)
-    ↓ returns documents & highlights
-Data Processing → Markdown Generation
-    ↓ commits file
-GitHub API
-    ↓ pushes to repository
-Your Blog Repository
-    ↓ webhook triggers
-Cloudflare Pages (auto-builds & deploys)
+Readwise APIs
+    ↓ processes & generates
+Markdown Digest
+    ↓ commits
+GitHub Repository
+    ↓ auto-deploys
+Your Blog
 ```
 
-**Execution flow:** Every Monday at midnight UTC, Cloud Scheduler publishes a message to a Pub/Sub topic. This triggers the Cloud Function via Eventarc, which creates a push subscription automatically. The function fetches the past week's archived documents and highlights from Readwise, processes the data into statistics and lists, generates a markdown file with proper front matter, and commits it to your GitHub repository. Cloudflare Pages detects the commit and rebuilds your site, publishing the new digest.
-
 **Key components:**
-- Cloud Function runs stateless, scales to zero when idle (no cost)
-- Pub/Sub provides reliable message delivery with automatic retries
-- Eventarc manages the connection between Pub/Sub and Cloud Function
-- Environment variables store API tokens securely (encrypted at rest)
-- IAM permissions control access between services
+- Cloud Function scales to zero when idle (minimal cost)
+- Pub/Sub provides reliable message delivery
+- Environment variables store API tokens securely
+- Runs every Saturday at 1 AM UTC
 
-## Common Workflows
+## Code Structure
+
+- **`main.py`** - Cloud Function entry point and orchestration logic
+- **`readwise_client.py`** - Readwise API client with rate limiting and pagination
+- **`github_client.py`** - GitHub API client for file operations
+- **`data_processor.py`** - Processes API responses into structured data
+- **`markdown_generator.py`** - Generates formatted markdown with YAML front matter
+- **`scripts/deploy.sh`** - Deployment automation script
+- **`scripts/test_local.py`** - Local testing script
+
+## Quick Start
 
 ### 1. Initial Setup
 ```bash
@@ -85,34 +68,27 @@ export GITHUB_REPO_NAME="your_repo"
 ./scripts/deploy.sh your-project-id us-central1
 ```
 
-### 3. Manual Trigger for Testing
-```bash
-# Trigger via Pub/Sub
-gcloud pubsub topics publish weekly-digest-trigger \
-  --message='{"test":true}' \
-  --project=your-project-id
+The deploy script will:
+- Create Pub/Sub topic (if needed)
+- Deploy the Cloud Function
+- Create/update Cloud Scheduler job
+- Set environment variables
 
-# Or trigger via Scheduler
+### 3. Manual Testing
+```bash
+# Trigger via Scheduler
 gcloud scheduler jobs run weekly-digest-schedule \
   --location=us-central1 \
   --project=your-project-id
-```
 
-### 4. View Logs and Debug
-```bash
-# View function logs
+# View logs
 gcloud functions logs read weekly-digest-generator \
   --region=us-central1 \
   --project=your-project-id \
   --limit=50
-
-# Check function status
-gcloud functions describe weekly-digest-generator \
-  --region=us-central1 \
-  --gen2
 ```
 
-### 5. Update Configuration
+### 4. Update Configuration
 ```bash
 # Update environment variables
 gcloud functions deploy weekly-digest-generator \
@@ -120,8 +96,7 @@ gcloud functions deploy weekly-digest-generator \
   --region=us-central1 \
   --project=your-project-id
 
-# Change schedule (edit deploy.sh SCHEDULE variable, then redeploy)
-# Example: SCHEDULE="0 8 * * 1"  # Monday at 8 AM UTC
+# Change schedule (edit SCHEDULE in deploy.sh, then redeploy)
 ```
 
 ## Requirements
@@ -133,35 +108,33 @@ gcloud functions deploy weekly-digest-generator \
 - GitHub repository for your blog
 - API tokens: Readwise access token, GitHub personal access token (repo scope)
 
+## Generated Content
+
+Each weekly digest includes:
+- Article count, total words read, highlight count
+- Breakdown by category and source
+- Table of archived articles with metadata
+- Table of tags with counts
+- All highlights created during the week with optional notes
+- YAML front matter (published automatically with `draft: false`)
+
 ## Cost
 
-Typical monthly cost: $0-$0.10
+Typical monthly cost: **$0-$0.10**
 - Cloud Function: ~$0.001 (4 invocations/month, 30s each)
 - Cloud Scheduler: First 3 jobs free
 - Pub/Sub: First 10GB free
 - Cloud Logging: First 50GB free
 
-## Generated Content
-
-Each weekly digest includes:
-- Article count, total words read, highlight count
-- Breakdown by category (articles, books, etc.)
-- Breakdown by source (iOS, RSS, import, etc.)
-- List of archived articles with titles, authors, word counts, summaries
-- All highlights created during the week with optional notes
-- YAML front matter ready for Hugo, Jekyll, or other static site generators
-
 ## Troubleshooting
 
-**Function not triggering:** Check Pub/Sub subscription exists with `gcloud pubsub topics list-subscriptions weekly-digest-trigger`. If missing, redeploy the function.
+**Function not triggering:** Check scheduler job status with `gcloud scheduler jobs describe weekly-digest-schedule --location=us-central1`. The deploy script handles Pub/Sub setup automatically.
 
-**Permission errors:** Ensure IAM roles are set correctly. The deploy script handles this automatically, but may need 30-60 seconds for propagation.
+**Permission errors:** IAM roles are set automatically by the deploy script. Allow 30-60 seconds for propagation after first deployment.
 
-**Date format errors:** Verify datetime objects are being formatted as ISO 8601 with Z suffix (e.g., `2025-09-30T00:00:00Z`) not with timezone offsets.
+**Rate limiting:** Readwise APIs have rate limits. The client includes exponential backoff and retry logic.
 
-**Rate limiting:** Readwise APIs have rate limits (20-50 requests/minute). The client includes exponential backoff and retry logic.
-
-**Missing environment variables:** Check they're set during deployment with `gcloud functions describe weekly-digest-generator --format="value(serviceConfig.environmentVariables)"`.
+**Missing environment variables:** Check with `gcloud functions describe weekly-digest-generator --format="value(serviceConfig.environmentVariables)"`.
 
 ## License
 
