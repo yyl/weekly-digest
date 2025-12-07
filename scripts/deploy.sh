@@ -4,6 +4,7 @@
 # This script deploys the Cloud Function using UV for dependency management
 
 set -e  # Exit on any error
+source .env
 
 # Configuration variables
 PROJECT_ID=${1:-"your-project-id"}
