@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 class MarkdownGenerator:
     """Generates markdown content for the weekly reading digest"""
     
+    AVERAGE_READING_SPEED_WPM = 225
+
     def generate_digest(self, processed_data: Dict[str, Any]) -> str:
         """
         Generate complete markdown content for the weekly digest.
@@ -71,11 +73,25 @@ categories: ["Reading"]
     
     def _generate_overview(self, documents: Dict, highlights: Dict) -> str:
         """Generate overview section with key statistics"""
+
+        # Calculate time spent reading
+        total_words = documents['total_word_count']
+        minutes_spent = total_words / self.AVERAGE_READING_SPEED_WPM
+        minutes_total = round(minutes_spent)
+
+        if minutes_total < 60:
+            time_display = f"{minutes_total} minutes"
+        else:
+            hours = minutes_total // 60
+            minutes = minutes_total % 60
+            time_display = f"{hours}h {minutes}m"
+
         overview_parts = [
             "## Overview",
             "",
             f"- **Articles Archived**: {documents['total_count']}",
             f"- **Total Words Read**: {documents['total_word_count']:,}",
+            f"- **Time Spent Reading**: {time_display}",
             f"- **Highlights Created**: {highlights['total_count']}",
             ""
         ]
